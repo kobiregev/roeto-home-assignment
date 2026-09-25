@@ -24,4 +24,6 @@ export interface Store {
    listWaitingGames(): Promise<Game[]>
    /** Games the user is in that are still waiting or active. */
    listUnfinishedGamesFor(userId: string): Promise<Game[]>
+   /** The most recently created game the user is in, whatever its status. */
+   findLatestGameFor(userId: string): Promise<Game | undefined>
 }

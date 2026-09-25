@@ -126,12 +126,37 @@ describe('lobby and current game', () => {
       expect(await service.listOpenGames(carol)).toEqual([])
    })
 
-   it('returns the current game, or null when there is none', async () => {
+   it('returns the current game, or null when the user never had one', async () => {
       expect(await service.getCurrentGame(alice)).toBeNull()
       const game = await service.createGame(alice)
       expect((await service.getCurrentGame(alice))!.id).toBe(game.id)
-      await service.leaveGame(alice, game.id)
-      expect(await service.getCurrentGame(alice)).toBeNull()
+   })
+
+   it('keeps returning a game that ended, so both players can see the result', async () => {
+      const id = await startGame(10)
+      dice = [5, 5]
+      await service.roll(alice, id)
+      await service.hold(alice, id)
+      for (const user of [alice, bob]) {
+         const current = await service.getCurrentGame(user)
+         expect(current).toMatchObject({ id, status: GameStatus.Finished, winnerId: alice })
+      }
+   })
+
+   it('shows the opponent that the game was abandoned', async () => {
+      const id = await startGame()
+      await service.leaveGame(alice, id)
+      expect(await service.getCurrentGame(bob)).toMatchObject({ id, status: GameStatus.Abandoned })
+   })
+
+   it('prefers an unfinished game over an older finished one', async () => {
+      const first = await startGame(10)
+      dice = [5, 5]
+      await service.roll(alice, first)
+      await service.hold(alice, first)
+      const next = await service.createGame(alice)
+      expect((await service.getCurrentGame(alice))!.id).toBe(next.id)
+      expect((await service.getCurrentGame(bob))!.id).toBe(first) // bob has not joined the new one yet
    })
 })
 

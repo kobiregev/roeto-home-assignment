@@ -44,6 +44,11 @@ export class MemoryStore implements Store {
       return [...this.games.values()].filter((g) => g.status === GameStatus.Waiting)
    }
 
+   async findLatestGameFor(userId: string): Promise<Game | undefined> {
+      // A Map iterates in creation order and keeps a game's position when it is saved again.
+      return [...this.games.values()].reverse().find((g) => g.players.some((p) => p.userId === userId))
+   }
+
    async listUnfinishedGamesFor(userId: string): Promise<Game[]> {
       return [...this.games.values()].filter(
          (g) =>

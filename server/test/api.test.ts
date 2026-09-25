@@ -205,7 +205,18 @@ describe('playing', () => {
          bob: 0,
          carol: 0,
       })
-      expect((await as('alice').get('/api/games/current')).body.game).toBeNull()
+      // both windows keep seeing the finished game until they start or join another one
+      for (const user of ['alice', 'bob']) {
+         const current = await as(user).get('/api/games/current')
+         expect(current.body.game).toMatchObject({ id, status: 'finished' })
+      }
+   })
+
+   it("the opponent's current game shows 'abandoned' after the other player leaves", async () => {
+      const id = await startGame()
+      await as('alice').post(`/api/games/${id}/leave`)
+      const current = await as('bob').get('/api/games/current')
+      expect(current.body.game).toMatchObject({ id, status: 'abandoned', winnerId: null })
    })
 })
 

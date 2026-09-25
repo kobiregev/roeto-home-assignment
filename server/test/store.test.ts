@@ -59,6 +59,21 @@ describe('games', () => {
       expect((await store.listWaitingGames()).map((g) => g.id)).toEqual(['open'])
    })
 
+   it('finds the most recently created game of a user, whatever its status', async () => {
+      expect(await store.findLatestGameFor('a')).toBeUndefined()
+
+      await store.saveGame(createGame('first', alice, 100))
+      await store.saveGame(joinGame(createGame('second', carol, 100), alice))
+      await store.saveGame(createGame('others', carol, 100))
+      expect((await store.findLatestGameFor('a'))!.id).toBe('second')
+
+      // saving a game again (e.g. after it is abandoned) does not change which one is newest
+      await store.saveGame(leaveGame(createGame('first', alice, 100), 'a'))
+      expect((await store.findLatestGameFor('a'))!.id).toBe('second')
+      await store.saveGame(leaveGame(joinGame(createGame('second', carol, 100), alice), 'a'))
+      expect((await store.findLatestGameFor('a'))!.status).toBe('abandoned')
+   })
+
    it('lists a users unfinished games only', async () => {
       await store.saveGame(createGame('waiting', alice, 100))
       await store.saveGame(joinGame(createGame('active', alice, 100), bob))

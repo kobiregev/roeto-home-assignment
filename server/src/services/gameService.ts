@@ -89,10 +89,16 @@ export class GameService {
       return waiting.filter((g) => !g.players.some((p) => p.userId === userId))
    }
 
-   /** The user's waiting or active game, if any. There is at most one. */
+   /**
+    * The game the user should be looking at: their waiting or active game (there is at most one),
+    * otherwise their most recent game, so a finished or abandoned game stays visible as a result.
+    */
    async getCurrentGame(userId: string): Promise<Game | null> {
-      const games = await this.store.listUnfinishedGamesFor(userId)
-      return games[0] ?? null
+      const unfinished = await this.store.listUnfinishedGamesFor(userId)
+      if (unfinished.length > 0) return unfinished[0]
+
+      const latest = await this.store.findLatestGameFor(userId)
+      return latest ?? null
    }
 
    private async abandonUnfinished(userId: string, exceptGameId?: string): Promise<void> {
