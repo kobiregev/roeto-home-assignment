@@ -25,6 +25,7 @@ const makeGame = (overrides: Partial<Game> = {}): Game => ({
    winningScore: 100,
    status: 'active',
    winnerId: null,
+   acknowledgedBy: [],
    ...overrides,
 })
 
@@ -39,6 +40,7 @@ const api = {
    createGame: vi.fn(),
    joinGame: vi.fn(),
    leaveGame: vi.fn(),
+   acknowledgeGame: vi.fn(),
    roll: vi.fn(),
    hold: vi.fn(),
 }
@@ -177,14 +179,56 @@ describe('useWindowSession', () => {
       expect(api.joinGame).toHaveBeenCalledWith('g9')
    })
 
-   it('hides a finished game after "Back to lobby"', async () => {
-      const finished = makeGame({ status: 'finished', winnerId: 'a', currentPlayerId: null })
-      const { result } = await renderLoggedIn(finished)
-      await waitFor(() => expect(result.current.game).not.toBeNull())
+   describe('acknowledging an ended game ("Back to lobby")', () => {
+      const abandoned = makeGame({ status: 'abandoned', currentPlayerId: null })
 
-      act(() => result.current.dismissResult())
+      it('tells the server, refreshes, and hides the game once the server says it is acknowledged', async () => {
+         const { result, rerender } = await renderLoggedIn(abandoned)
+         await waitFor(() => expect(result.current.game).not.toBeNull())
 
-      expect(result.current.game).toBeNull()
+         await act(async () => {
+            await result.current.dismissResult()
+         })
+         expect(api.acknowledgeGame).toHaveBeenCalledWith('g1')
+         expect(onChanged).toHaveBeenCalledTimes(1)
+
+         api.currentGame.mockResolvedValue({ ...abandoned, acknowledgedBy: ['a'] })
+         rerender({ tick: 1 })
+         await waitFor(() => expect(result.current.game).toBeNull())
+      })
+
+      it('stays hidden after logging out and back in (the bug this endpoint fixes)', async () => {
+         api.currentGame.mockResolvedValue({ ...abandoned, acknowledgedBy: ['a'] })
+         const { result } = renderHook(() => useWindowSession(KEY, 0, onChanged))
+
+         await act(() => result.current.login('alice', 'alice123'))
+         await waitFor(() => expect(api.currentGame).toHaveBeenCalled())
+         await waitFor(() => expect(result.current.users).toHaveLength(1))
+         expect(result.current.game).toBeNull()
+
+         act(() => result.current.logout())
+         await act(() => result.current.login('alice', 'alice123'))
+         await waitFor(() => expect(result.current.users).toHaveLength(1))
+         expect(result.current.game).toBeNull()
+      })
+
+      it('still shows the result to a player who has not acknowledged it, even if the opponent did', async () => {
+         const { result } = await renderLoggedIn({ ...abandoned, acknowledgedBy: ['b'] })
+         await waitFor(() => expect(result.current.game?.id).toBe('g1'))
+      })
+
+      it('keeps the result and shows the server message when the acknowledgement fails', async () => {
+         api.acknowledgeGame.mockRejectedValue(apiError(409, 'Game is not over yet'))
+         const { result } = await renderLoggedIn(abandoned)
+         await waitFor(() => expect(result.current.game).not.toBeNull())
+
+         await act(async () => {
+            await result.current.dismissResult()
+         })
+
+         expect(result.current.error).toBe('Game is not over yet')
+         expect(result.current.game?.id).toBe('g1')
+      })
    })
 
    it('logout clears the session, the stored login and the data', async () => {

@@ -21,6 +21,7 @@ export function createGame(id: string, host: Identity, winningScore: number): Ga
       winningScore,
       status: GameStatus.Waiting,
       winnerId: null,
+      acknowledgedBy: [],
    }
 }
 
@@ -71,6 +72,15 @@ export function leaveGame(game: Game, userId: string): Game {
    if (game.status !== GameStatus.Waiting && game.status !== GameStatus.Active) throw conflict('Game is already over')
 
    return { ...game, status: GameStatus.Abandoned, currentPlayerId: null, roundScore: 0, lastRoll: null }
+}
+
+/** A player dismisses the result of a finished or abandoned game. Each player acknowledges on their own. */
+export function acknowledge(game: Game, userId: string): Game {
+   if (!game.players.some((p) => p.userId === userId)) throw forbidden('You are not in this game')
+   if (game.status !== GameStatus.Finished && game.status !== GameStatus.Abandoned) throw conflict('Game is not over yet')
+   if (game.acknowledgedBy.includes(userId)) return game
+
+   return { ...game, acknowledgedBy: [...game.acknowledgedBy, userId] }
 }
 
 function assertCanAct(game: Game, userId: string): void {

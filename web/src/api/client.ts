@@ -60,6 +60,11 @@ export class ApiClient {
       return res.data.game
    }
 
+   async acknowledgeGame(id: string): Promise<Game> {
+      const res = await this.http.post<{ game: Game }>(`/games/${id}/acknowledge`)
+      return res.data.game
+   }
+
    async roll(id: string): Promise<ActionResult> {
       const res = await this.http.post<ActionResult>(`/games/${id}/roll`)
       return res.data

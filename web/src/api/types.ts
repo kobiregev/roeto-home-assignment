@@ -19,6 +19,7 @@ export interface Game {
    winningScore: number
    status: GameStatus
    winnerId: string | null
+   acknowledgedBy: string[]
 }
 
 export interface User {

@@ -18,6 +18,9 @@ const login = async (username: string) => {
    return res.body.token as string
 }
 
+/** The user id of a logged-in test user, read from the token's subject. */
+const tokenUserId = (username: string) => jwt.decode(tokens[username])!.sub as string
+
 /** Authenticated request helpers, one per simulated window/user. */
 const as = (username: string) => ({
    get: (url: string) => request(app).get(url).set('Authorization', `Bearer ${tokens[username]}`),
@@ -217,6 +220,44 @@ describe('playing', () => {
       await as('alice').post(`/api/games/${id}/leave`)
       const current = await as('bob').get('/api/games/current')
       expect(current.body.game).toMatchObject({ id, status: 'abandoned', winnerId: null })
+   })
+})
+
+describe('acknowledging an ended game', () => {
+   it('is remembered per player, so only that player stops seeing the result', async () => {
+      const id = await startGame()
+      await as('alice').post(`/api/games/${id}/leave`)
+
+      const acked = await as('bob').post(`/api/games/${id}/acknowledge`)
+      expect(acked.status).toBe(200)
+      expect(acked.body.game.acknowledgedBy).toEqual([tokenUserId('bob')])
+
+      const bobsView = await as('bob').get('/api/games/current')
+      expect(bobsView.body.game.acknowledgedBy).toEqual([tokenUserId('bob')])
+      const alicesView = await as('alice').get('/api/games/current')
+      expect(alicesView.body.game.acknowledgedBy).not.toContain(tokenUserId('alice'))
+   })
+
+   it('works for a finished game too, and repeating it is harmless', async () => {
+      const id = await startGame(10)
+      dice = [5, 5]
+      await as('alice').post(`/api/games/${id}/roll`)
+      await as('alice').post(`/api/games/${id}/hold`)
+
+      await as('alice').post(`/api/games/${id}/acknowledge`)
+      const again = await as('alice').post(`/api/games/${id}/acknowledge`)
+      expect(again.status).toBe(200)
+      expect(again.body.game.acknowledgedBy).toEqual([tokenUserId('alice')])
+   })
+
+   it('rejects strangers (403), games still in play (409), unknown games (404) and missing tokens (401)', async () => {
+      const id = await startGame()
+      expect((await as('alice').post(`/api/games/${id}/acknowledge`)).status).toBe(409)
+
+      await as('alice').post(`/api/games/${id}/leave`)
+      expect((await as('carol').post(`/api/games/${id}/acknowledge`)).status).toBe(403)
+      expect((await as('alice').post('/api/games/nope/acknowledge')).status).toBe(404)
+      expect((await request(app).post(`/api/games/${id}/acknowledge`)).status).toBe(401)
    })
 })
 

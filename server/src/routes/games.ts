@@ -49,5 +49,10 @@ export function gameRoutes(games: GameService): Router {
       res.json({ game })
    })
 
+   router.post('/:id/acknowledge', async (req, res) => {
+      const game = await games.acknowledgeGame(currentUserId(req), req.params.id)
+      res.json({ game })
+   })
+
    return router
 }

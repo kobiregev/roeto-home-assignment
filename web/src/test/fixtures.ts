@@ -16,5 +16,6 @@ export const makeGame = (overrides: Partial<Game> = {}): Game => ({
    winningScore: 100,
    status: 'active',
    winnerId: null,
+   acknowledgedBy: [],
    ...overrides,
 })

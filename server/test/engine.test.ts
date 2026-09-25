@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createGame, hold, joinGame, leaveGame, roll } from '../src/game/engine'
+import { acknowledge, createGame, hold, joinGame, leaveGame, roll } from '../src/game/engine'
 import { AppError } from '../src/game/errors'
 import { GameEvent, GameStatus, type DiceRoller, type Game } from '../src/game/types'
 
@@ -210,5 +210,47 @@ describe('leave', () => {
       const won = hold(roll(activeGame(10), 'a', fixed(5, 5)).game, 'a').game
       expectStatus(() => leaveGame(won, 'a'), 409)
       expectStatus(() => leaveGame(leaveGame(waitingGame(), 'a'), 'a'), 409)
+   })
+})
+
+describe('acknowledge', () => {
+   const abandoned = (): Game => leaveGame(activeGame(), 'b')
+   const finished = (): Game => {
+      const rolled = roll(activeGame(10), 'a', fixed(5, 5)).game
+      return hold(rolled, 'a').game
+   }
+
+   it('starts with nobody having acknowledged', () => {
+      expect(waitingGame().acknowledgedBy).toEqual([])
+   })
+
+   it('records the player on an abandoned game and on a finished game', () => {
+      expect(acknowledge(abandoned(), 'a').acknowledgedBy).toEqual(['a'])
+      expect(acknowledge(finished(), 'b').acknowledgedBy).toEqual(['b'])
+   })
+
+   it('tracks each player separately', () => {
+      const both = acknowledge(acknowledge(abandoned(), 'a'), 'b')
+      expect(both.acknowledgedBy).toEqual(['a', 'b'])
+   })
+
+   it('is idempotent', () => {
+      const once = acknowledge(abandoned(), 'a')
+      expect(acknowledge(once, 'a')).toBe(once)
+   })
+
+   it('rejects a player who is not in the game', () => {
+      expectStatus(() => acknowledge(abandoned(), 'c'), 403)
+   })
+
+   it('rejects a game that is not over yet', () => {
+      expectStatus(() => acknowledge(waitingGame(), 'a'), 409)
+      expectStatus(() => acknowledge(activeGame(), 'a'), 409)
+   })
+
+   it('does not mutate the previous state', () => {
+      const before = abandoned()
+      acknowledge(before, 'a')
+      expect(before.acknowledgedBy).toEqual([])
    })
 })

@@ -33,7 +33,6 @@ export function useWindowSession(storageKey: string, refreshTick: number, onChan
    const [game, setGame] = useState<Game | null>(null)
    const [openGames, setOpenGames] = useState<Game[]>([])
    const [users, setUsers] = useState<User[]>([])
-   const [dismissedGameId, setDismissedGameId] = useState<string | null>(null)
    const [busy, setBusy] = useState(false)
    const [error, setError] = useState<string | null>(null)
 
@@ -43,7 +42,6 @@ export function useWindowSession(storageKey: string, refreshTick: number, onChan
       setGame(null)
       setOpenGames([])
       setUsers([])
-      setDismissedGameId(null)
       setError(null)
    }, [storageKey])
 
@@ -100,8 +98,9 @@ export function useWindowSession(storageKey: string, refreshTick: number, onChan
       }
    }
 
-   // A finished or abandoned game stays "current" on the server, so "Back to lobby" is a local choice.
-   const visibleGame = game && game.id === dismissedGameId ? null : game
+   // A finished or abandoned game stays "current" on the server until this player acknowledges it
+   // ("Back to lobby"), so the result is hidden once the server says this user has seen it.
+   const visibleGame = game && session && game.acknowledgedBy.includes(session.user.id) ? null : game
 
    return {
       session,
@@ -117,7 +116,7 @@ export function useWindowSession(storageKey: string, refreshTick: number, onChan
       roll: () => visibleGame && run((a) => a.roll(visibleGame.id)),
       hold: () => visibleGame && run((a) => a.hold(visibleGame.id)),
       leaveGame: () => visibleGame && run((a) => a.leaveGame(visibleGame.id)),
-      dismissResult: () => setDismissedGameId(visibleGame?.id ?? null),
+      dismissResult: () => visibleGame && run((a) => a.acknowledgeGame(visibleGame.id)),
    }
 }
 

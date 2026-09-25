@@ -24,6 +24,7 @@ export interface Game {
    winningScore: number
    status: GameStatus
    winnerId: string | null
+   acknowledgedBy: string[] // ids of players who dismissed the result of an ended game
 }
 
 export enum GameEvent {

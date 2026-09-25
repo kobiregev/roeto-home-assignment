@@ -76,6 +76,16 @@ export class GameService {
       })
    }
 
+   /** Records that this player has seen the result of an ended game, so it stops being shown to them. */
+   acknowledgeGame(userId: string, gameId: string): Promise<Game> {
+      return this.withGameLock(gameId, async () => {
+         const game = await this.requireGame(gameId)
+         const acknowledged = engine.acknowledge(game, userId)
+         await this.store.saveGame(acknowledged)
+         return acknowledged
+      })
+   }
+
    /** A game is visible to its participants only. */
    async getGame(userId: string, gameId: string): Promise<Game> {
       const game = await this.requireGame(gameId)
