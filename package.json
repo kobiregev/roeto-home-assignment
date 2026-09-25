@@ -1,0 +1,13 @@
+{
+   "name": "dice-game",
+   "private": true,
+   "scripts": {
+      "postinstall": "npm install --prefix server && npm install --prefix web",
+      "dev": "concurrently -n api,web -c blue,green \"npm run dev --prefix server\" \"npm run dev --prefix web\"",
+      "test": "npm test --prefix server && npm test --prefix web",
+      "typecheck": "npm run typecheck --prefix server && npm run typecheck --prefix web"
+   },
+   "devDependencies": {
+      "concurrently": "^10.0.5"
+   }
+}
