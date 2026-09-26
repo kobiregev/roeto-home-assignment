@@ -49,6 +49,7 @@ The rules live in one pure module so they can be tested without HTTP or a databa
 - **The game starts only when two different users are in it.** A game is created as `waiting`; a second, different user joining is the "ready" signal. Joining your own game, a third user joining, or rolling/holding while waiting all return 409. This stops one user playing against themselves, which is possible when both windows share one browser.
 - **The server enforces turns.** The JWT user must be the current player, otherwise 403, regardless of what the UI shows.
 - **Leaving:** either player can cancel a waiting game or quit an active one (no winner). Creating or joining a game abandons your other unfinished games.
+- **Ended games remain visible until each player acknowledges them** (`POST /games/:id/acknowledge`), so a result screen does not reappear after logout or reload.
 - **No live updates.** Both windows live in one React page, so any action in either window triggers a refetch in both. No polling and no websockets.
 - **In-memory storage.** Games and win counts are lost when the API restarts. Tokens issued before a restart are rejected, because they are checked against the store.
 - **Users are seeded**, passwords hashed with `bcryptjs` (pure JS, so no native build on Windows).
@@ -66,4 +67,4 @@ The rules live in one pure module so they can be tested without HTTP or a databa
 
 ## AI usage
 
-I built this with Claude Code and kept a curated record of the collaboration in [docs/AI_LOG.md](docs/AI_LOG.md): what I asked for, what I pushed back on, what the AI got wrong, and how each part was verified.
+I built this with Claude Code. The conversation is in [docs/AI_CONVERSATION.md](docs/AI_CONVERSATION.md): what I asked for, the plans I reviewed and pushed back on, and how each part was verified, including a bug I found in manual testing and how we fixed it. Tool calls are summarised in one line each, and raw tool output is left out.
